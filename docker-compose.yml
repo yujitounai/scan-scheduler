@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: amass-api
+    ports:
+      - "5555:5555"
+    networks:
+      - amass-net
+
+  frontend:
+    build: ./frontend
+    container_name: scan-frontend
+    ports:
+      - "3333:3333"
+    volumes:
+      - ./frontend:/app
+    networks:
+      - amass-net
+    depends_on:
+     - backend
+
+  pd-api:
+    build: ./pd-api
+    container_name: pd-api
+    ports:
+      - "5556:5556"
+    networks:
+      - amass-net
+      
+  nuclei-api:
+    build: ./nuclei-api
+    container_name: nuclei-api
+    entrypoint: ["./venv/bin/python", "/app/app.py"]
+
+    command: sleep infinity
+    volumes:
+      - ./nuclei-templates:/nuclei-templates
+    ports:
+      - "5557:5557"
+    networks:
+      - amass-net
+
+
+networks:
+  amass-net:
+
