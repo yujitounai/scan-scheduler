@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Multi Scan Dashboard</title>
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 2rem;
+    }
+    pre {
+      background: #f8f8f8;
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .scan-section {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+          <!-- ナビゲーションバー -->
+  <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">Dashboard</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/schedules">スケジュール管理</a></li>
+          <li class="nav-item"><a class="nav-link" href="/results">スキャン結果一覧</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="container">
+    <h1 class="mb-4">Multi Scan Dashboard</h1>
+
+    <!-- Nmap Scan セクション -->
+    <div class="scan-section">
+      <h3>Nmap Scan</h3>
+      <div class="mb-3">
+        <label for="nmapTarget" class="form-label">ターゲット (IPまたはドメイン)</label>
+        <input type="text" id="nmapTarget" class="form-control" placeholder="例: 192.168.1.1 または example.com">
+      </div>
+      <button id="nmapScanButton" class="btn btn-primary">Nmap スキャン開始</button>
+      <div id="nmapResultContainer" class="mt-3" style="display: none;">
+        <h5>結果</h5>
+        <pre id="nmapResultText"></pre>
+      </div>
+    </div>
+
+    <!-- Amass Scan セクション -->
+    <div class="scan-section">
+      <h3>Amass Scan</h3>
+      <div class="mb-3">
+        <label for="amassTarget" class="form-label">ターゲット (ドメイン)</label>
+        <input type="text" id="amassTarget" class="form-control" placeholder="例: example.com">
+      </div>
+      <button id="amassScanButton" class="btn btn-primary">Amass スキャン開始</button>
+      <div id="amassResultContainer" class="mt-3" style="display: none;">
+        <h5>結果</h5>
+        <pre id="amassResultText"></pre>
+      </div>
+    </div>
+
+    <!-- Recon Scan セクション -->
+    <div class="scan-section">
+      <h3>Recon-ng</h3>
+      <div class="mb-3">
+        <label for="reconTarget" class="form-label">ターゲット (ドメイン)</label>
+        <input type="text" id="reconTarget" class="form-control" placeholder="例: example.com">
+      </div>
+      <button id="reconScanButton" class="btn btn-primary">Recon スキャン開始</button>
+      <div id="reconResultContainer" class="mt-3" style="display: none;">
+        <h5>結果</h5>
+        <pre id="reconResultText"></pre>
+      </div>
+    </div>
+
+    <!-- Subfinder Scan セクション -->
+    <div class="scan-section">
+      <h3>Subfinder</h3>
+      <div class="mb-3">
+        <label for="subfinderTarget" class="form-label">ターゲット (ドメイン)</label>
+        <input type="text" id="subfinderTarget" class="form-control" placeholder="例: example.com">
+      </div>
+      <button id="subfinderScanButton" class="btn btn-primary">Subfinder スキャン開始</button>
+      <div id="subfinderResultContainer" class="mt-3" style="display: none;">
+        <h5>結果</h5>
+        <pre id="subfinderResultText"></pre>
+      </div>
+    </div>
+
+    <!-- ProjectDiscovery Tools セクション -->
+    <div class="scan-section">
+      <h3>ProjectDiscovery Tools</h3>
+      <div class="mb-3">
+        <label for="toolInput" class="form-label">ターゲット</label>
+        <input type="text" id="toolInput" class="form-control" placeholder="例: example.com または IP">
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button id="tool-httpx-btn" class="btn btn-secondary">httpx 実行</button>
+        <button id="tool-dnsx-btn" class="btn btn-secondary">dnsx 実行</button>
+        <button id="tool-naabu-btn" class="btn btn-secondary">naabu 実行</button>
+        <button id="tool-cdncheck-btn" class="btn btn-secondary">cdncheck 実行</button>
+        <button id="tool-tlsx-btn" class="btn btn-secondary">tlsx 実行</button>
+      </div>
+      <!-- 各ツールの結果表示 -->
+      <div id="tool-httpx-result" class="mt-3" style="display: none;">
+        <h5>httpx 結果</h5>
+        <pre id="tool-httpx-pre"></pre>
+      </div>
+      <div id="tool-dnsx-result" class="mt-3" style="display: none;">
+        <h5>dnsx 結果</h5>
+        <pre id="tool-dnsx-pre"></pre>
+      </div>
+      <div id="tool-naabu-result" class="mt-3" style="display: none;">
+        <h5>naabu 結果</h5>
+        <pre id="tool-naabu-pre"></pre>
+      </div>
+      <div id="tool-cdncheck-result" class="mt-3" style="display: none;">
+        <h5>cdncheck 結果</h5>
+        <pre id="tool-cdncheck-pre"></pre>
+      </div>
+      <div id="tool-tlsx-result" class="mt-3" style="display: none;">
+        <h5>tlsx 結果</h5>
+        <pre id="tool-tlsx-pre"></pre>
+      </div>
+    </div>
+
+    <!-- Nuclei Scan セクション -->
+    <div class="scan-section">
+      <h3>Nuclei Scan</h3>
+      <div class="mb-3">
+        <label for="nucleiTarget" class="form-label">ターゲット (URL)</label>
+        <input type="text" id="nucleiTarget" class="form-control" placeholder="例: http://example.com">
+      </div>
+      <div class="mb-3">
+        <label for="nucleiTemplate" class="form-label">テンプレートファイル名</label>
+        <input type="text" id="nucleiTemplate" class="form-control" placeholder="例: http/cves/2022/CVE-2022-31269.yaml">
+      </div>
+      <button id="nucleiScanButton" class="btn btn-primary">Nuclei スキャン開始</button>
+      <div id="nucleiResultContainer" class="mt-3" style="display: none;">
+        <h5>結果</h5>
+        <pre id="nucleiResultText"></pre>
+      </div>
+      <div id="nucleiErrorContainer" class="mt-3" style="display: none;">
+        <h5 class="text-danger">エラー</h5>
+        <pre id="nucleiErrorText"></pre>
+      </div>
+    </div>
+    
+    <!-- パイプライン実行セクション -->
+    <div class="scan-section">
+      <h3>パイプライン実行（subfinder → dnsx → httpx）</h3>
+      <div class="mb-3">
+        <label for="pipelineTarget" class="form-label">ターゲット (ドメイン)</label>
+        <input type="text" id="pipelineTarget" class="form-control" placeholder="example.com">
+      </div>
+      <button id="pipelineExecButton" class="btn btn-primary">パイプライン実行</button>
+      <div id="pipelineErrorContainer" class="mt-3" style="display: none;">
+        <h5 class="text-danger">エラー:</h5>
+        <pre id="pipelineErrorText"></pre>
+      </div>
+      <div id="pipelineResultContainer" class="mt-3" style="display: none;">
+        <h5>結果（httpx JSON 出力）:</h5>
+        <pre id="pipelineResultText"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS (Bundle版: Popper.js 含む) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 共通のポーリング関数
+    function pollScan(jobId, pollUrlPrefix, resultContainerId, resultTextId, resetButtonCallback, toolName, target) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch(pollUrlPrefix + jobId);
+          const data = await res.json();
+          if (data.status === 'completed' || data.status === 'failed') {
+            clearInterval(interval);
+            let output = "";
+            // data.resultがオブジェクトで、returncodeがある場合
+            if (typeof data.result === "object" && data.result !== null && "returncode" in data.result) {
+              if (data.result.returncode === 0) {
+                // stdout が配列の場合は join を使って文字列に変換
+                if (Array.isArray(data.result.stdout)) {
+                  output = data.result.stdout.join("\n");
+                } else {
+                  output = data.result.stdout;
+                }
+              } else {
+                // returncode が 0 でない場合は stderr を出力
+                output = data.result.stderr || "エラーが発生しました";
+              }
+            } else if (data.result) {
+              // それ以外の場合は直接 result を利用
+              output = data.result;
+            } else {
+              output = "結果なし";
+            }
+            document.getElementById(resultContainerId).style.display = 'block';
+            document.getElementById(resultTextId).textContent = output;
+            resetButtonCallback();
+
+
+          }
+        } catch (error) {
+          clearInterval(interval);
+          alert("ステータス確認中にエラーが発生しました");
+          resetButtonCallback();
+        }
+      }, 2000);
+    }
+
+    // --- Nmap Scan ---
+    document.getElementById('nmapScanButton').addEventListener('click', async function() {
+      const target = document.getElementById('nmapTarget').value.trim();
+      if (!target) {
+        alert('ターゲットを入力してください');
+        return;
+      }
+      const button = document.getElementById('nmapScanButton');
+      button.disabled = true;
+      button.textContent = 'スキャン中...';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "nmap" })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', 'nmapResultContainer', 'nmapResultText', () => {
+            button.disabled = false;
+            button.textContent = 'Nmap スキャン開始';
+          }, 'nmap', target);
+        } else {
+          alert('スキャンジョブの登録に失敗しました');
+          button.disabled = false;
+          button.textContent = 'Nmap スキャン開始';
+        }
+      } catch (error) {
+        alert('スキャン開始中にエラーが発生しました');
+        button.disabled = false;
+        button.textContent = 'Nmap スキャン開始';
+      }
+    });
+
+    // --- Amass Scan ---
+    document.getElementById('amassScanButton').addEventListener('click', async function() {
+      const target = document.getElementById('amassTarget').value.trim();
+      if (!target) {
+        alert('ターゲットを入力してください');
+        return;
+      }
+      const button = document.getElementById('amassScanButton');
+      button.disabled = true;
+      button.textContent = 'スキャン中...';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "amass" })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', 'amassResultContainer', 'amassResultText', () => {
+            button.disabled = false;
+            button.textContent = 'Amass スキャン開始';
+          }, 'amass', target);
+        } else {
+          alert('スキャンジョブの登録に失敗しました');
+          button.disabled = false;
+          button.textContent = 'Amass スキャン開始';
+        }
+      } catch (error) {
+        alert('スキャン開始中にエラーが発生しました');
+        button.disabled = false;
+        button.textContent = 'Amass スキャン開始';
+      }
+    });
+
+    // --- Recon Scan ---
+    document.getElementById('reconScanButton').addEventListener('click', async function() {
+      const target = document.getElementById('reconTarget').value.trim();
+      if (!target) {
+        alert('ターゲットを入力してください');
+        return;
+      }
+      const button = document.getElementById('reconScanButton');
+      button.disabled = true;
+      button.textContent = 'スキャン中...';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "recon" })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', 'reconResultContainer', 'reconResultText', () => {
+            button.disabled = false;
+            button.textContent = 'Recon スキャン開始';
+          }, 'recon', target);
+        } else {
+          alert('スキャンジョブの登録に失敗しました');
+          button.disabled = false;
+          button.textContent = 'Recon スキャン開始';
+        }
+      } catch (error) {
+        alert('スキャン開始中にエラーが発生しました');
+        button.disabled = false;
+        button.textContent = 'Recon スキャン開始';
+      }
+    });
+
+    // --- Subfinder Scan ---
+    document.getElementById('subfinderScanButton').addEventListener('click', async function() {
+      const target = document.getElementById('subfinderTarget').value.trim();
+      if (!target) {
+        alert('ターゲットを入力してください');
+        return;
+      }
+      const button = document.getElementById('subfinderScanButton');
+      button.disabled = true;
+      button.textContent = 'スキャン中...';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "subfinder" })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', 'subfinderResultContainer', 'subfinderResultText', () => {
+            button.disabled = false;
+            button.textContent = 'Subfinder スキャン開始';
+          }, 'subfinder', target);
+        } else {
+          alert('スキャンジョブの登録に失敗しました');
+          button.disabled = false;
+          button.textContent = 'Subfinder スキャン開始';
+        }
+      } catch (error) {
+        alert('スキャン開始中にエラーが発生しました');
+        button.disabled = false;
+        button.textContent = 'Subfinder スキャン開始';
+      }
+    });
+
+    // --- ProjectDiscovery Tools (httpx, dnsx, naabu, cdncheck, tlsx) ---
+    async function startToolScan(tool, buttonId, resultContainerId, resultTextId) {
+      const target = document.getElementById('toolInput').value.trim();
+      const button = document.getElementById(buttonId);
+      if (!target) {
+        alert("ターゲットを入力してください");
+        return;
+      }
+      button.disabled = true;
+      button.textContent = tool + " 実行中...";
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: tool })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', resultContainerId, resultTextId, () => {
+            button.disabled = false;
+            button.textContent = tool + " 実行";
+          }, tool, target);
+        } else {
+          alert("スキャンジョブの登録に失敗しました");
+          button.disabled = false;
+          button.textContent = tool + " 実行";
+        }
+      } catch (e) {
+        alert("エラーが発生しました: " + e);
+        button.disabled = false;
+        button.textContent = tool + " 実行";
+      }
+    }
+
+    document.getElementById('tool-httpx-btn').addEventListener('click', function() {
+      startToolScan("httpx", "tool-httpx-btn", "tool-httpx-result", "tool-httpx-pre");
+    });
+    document.getElementById('tool-dnsx-btn').addEventListener('click', function() {
+      startToolScan("dnsx", "tool-dnsx-btn", "tool-dnsx-result", "tool-dnsx-pre");
+    });
+    document.getElementById('tool-naabu-btn').addEventListener('click', function() {
+      startToolScan("naabu", "tool-naabu-btn", "tool-naabu-result", "tool-naabu-pre");
+    });
+    document.getElementById('tool-cdncheck-btn').addEventListener('click', function() {
+      startToolScan("cdncheck", "tool-cdncheck-btn", "tool-cdncheck-result", "tool-cdncheck-pre");
+    });
+    document.getElementById('tool-tlsx-btn').addEventListener('click', function() {
+      startToolScan("tlsx", "tool-tlsx-btn", "tool-tlsx-result", "tool-tlsx-pre");
+    });
+
+    // --- Nuclei Scan ---
+    document.getElementById('nucleiScanButton').addEventListener('click', async function() {
+      const target = document.getElementById('nucleiTarget').value.trim();
+      const template = document.getElementById('nucleiTemplate').value.trim();
+      if (!target) {
+        alert("ターゲットを入力してください");
+        return;
+      }
+      if (!template) {
+        alert("テンプレートファイル名を入力してください");
+        return;
+      }
+      const button = document.getElementById('nucleiScanButton');
+      button.disabled = true;
+      button.textContent = "スキャン中...";
+      document.getElementById('nucleiResultContainer').style.display = 'none';
+      document.getElementById('nucleiErrorContainer').style.display = 'none';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "nuclei", template: template })
+        });
+        const data = await res.json();
+        if (data.job_id) {
+          pollScan(data.job_id, '/scan_status/', 'nucleiResultContainer', 'nucleiResultText', () => {
+            button.disabled = false;
+            button.textContent = "Nuclei スキャン開始";
+          }, 'nuclei', target);
+        } else {
+          alert("スキャンジョブの登録に失敗しました");
+          button.disabled = false;
+          button.textContent = "Nuclei スキャン開始";
+        }
+      } catch (error) {
+        alert("スキャン開始中にエラーが発生しました: " + error);
+        button.disabled = false;
+        button.textContent = "Nuclei スキャン開始";
+      }
+    });
+
+    // --- パイプライン実行 ---
+    document.getElementById('pipelineExecButton').addEventListener('click', async function(){
+      const target = document.getElementById('pipelineTarget').value.trim();
+      const button = document.getElementById('pipelineExecButton');
+      document.getElementById('pipelineErrorContainer').style.display = 'none';
+      document.getElementById('pipelineResultContainer').style.display = 'none';
+      if (!target) {
+        alert("ターゲットを入力してください");
+        return;
+      }
+      button.disabled = true;
+      button.textContent = '実行中...';
+      try {
+        const res = await fetch('/trigger_scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: target, tool: "pipeline" })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById('pipelineResultContainer').style.display = 'block';
+          const resultText = JSON.stringify(data.results, null, 2);
+          document.getElementById('pipelineResultText').textContent = resultText;
+          // 必要なら結果保存処理を追加
+        } else {
+          document.getElementById('pipelineErrorContainer').style.display = 'block';
+          document.getElementById('pipelineErrorText').textContent = data.error || 'エラーが発生しました';
+        }
+      } catch (err) {
+        document.getElementById('pipelineErrorContainer').style.display = 'block';
+        document.getElementById('pipelineErrorText').textContent = err.message;
+      } finally {
+        button.disabled = false;
+        button.textContent = 'パイプライン実行';
+      }
+    });
+  </script>
+</body>
+</html>
