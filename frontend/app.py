@@ -10,6 +10,8 @@ import logging
 import requests, json
 import os
 from zoneinfo import ZoneInfo
+from sqlalchemy import Column, String, Boolean
+import difflib
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///scans.db'
@@ -40,7 +42,8 @@ class ScanResult(db.Model):
     target = db.Column(db.String, nullable=False)
     result = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-
+    has_diff = db.Column(db.Boolean, default=False)
+    
 # 新たにスケジュール用のモデルを定義
 class Schedule(db.Model):
     __tablename__ = 'schedules'
@@ -52,6 +55,8 @@ class Schedule(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     last_run = db.Column(db.DateTime)
     # next_run は APScheduler 側の情報と連携させるか、定期的に更新
+    compare_mode = db.Column(db.String, default="none")  # none, diff, json_keys
+
 
 # APScheduler の初期化
 scheduler = BackgroundScheduler(timezone="Asia/Tokyo")
@@ -148,6 +153,27 @@ def scheduled_scan_job(schedule_id):
             schedule.last_run = datetime.now()
             db.session.commit()
 
+def compare_scan_results(prev_result, curr_result, mode="diff", keys=None):
+    if mode == "none":
+        return None
+    if mode == "diff":
+        return "".join(difflib.unified_diff(
+            prev_result.splitlines(keepends=True),
+            curr_result.splitlines(keepends=True),
+            fromfile='previous', tofile='current'
+        ))
+    if mode == "json_keys" and keys:
+        try:
+            import json
+            prev_data = json.loads(prev_result)
+            curr_data = json.loads(curr_result)
+            prev_filtered = {k: prev_data.get(k) for k in keys}
+            curr_filtered = {k: curr_data.get(k) for k in keys}
+            if prev_filtered != curr_filtered:
+                return f"差分あり\nBefore: {prev_filtered}\nAfter: {curr_filtered}"
+        except Exception as e:
+            return f"JSON比較エラー: {e}"
+    return None
 
 # アプリケーション起動時
 with app.app_context():
@@ -251,6 +277,22 @@ def update_scan_job(job_id, domain, tool_name, template=None):
         # このブロック内で save_scan_result を呼び出す
         try:
             save_scan_result(job_id, tool_name, domain, output)
+            try:
+                schedule = Schedule.query.get(scan.schedule_id)
+                if schedule and schedule.compare_mode != "none":
+                    prev = Scan.query \
+                        .filter(Scan.schedule_id == schedule.id, Scan.id != scan.id, Scan.status == "completed") \
+                        .order_by(Scan.created_at.desc()) \
+                        .first()
+                    if prev and prev.result:
+                        keys = ["status_code", "tech", "content_length"] if schedule.compare_mode == "json_keys" else None
+                        diff = compare_scan_results(prev.result, scan.result, schedule.compare_mode, keys)
+                        if diff:
+                            logger.info(f"比較差分あり (mode={schedule.compare_mode}):\n{diff}")
+                            scan.has_diff = True
+                            db.session.commit()
+            except Exception as e:
+                logger.warning(f"比較処理中にエラー: {e}")
         except Exception as e:
             logger.error(f"スキャン結果保存エラー: {e}")
 
@@ -402,20 +444,20 @@ def create_schedule():
     tool_name = data.get("tool_name")
     schedule_type = data.get("schedule_type")
     schedule_value = data.get("schedule_value")
+    compare_mode = data.get("compare_mode", "none")
 
-    # 事前にバリデーションと CronTrigger の生成を行い、エラーなら 400 を返す
     try:
         trigger = validate_and_create_trigger(schedule_type, schedule_value)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
-    # バリデーションが成功した場合のみ DB 登録とジョブ登録に進む
     schedule = Schedule(
         domain=domain,
         tool_name=tool_name,
         schedule_type=schedule_type,
         schedule_value=schedule_value,
-        is_active=True
+        is_active=True,
+        compare_mode=compare_mode
     )
     db.session.add(schedule)
     db.session.commit()
@@ -426,6 +468,7 @@ def create_schedule():
         return jsonify({"error": "ジョブ登録エラー: " + str(e)}), 500
 
     return jsonify({"status": "success", "id": schedule.id})
+
 
 # GET /api/schedules
 @app.route('/api/schedules', methods=['GET'])
@@ -445,7 +488,8 @@ def get_schedules():
             "schedule_value": sch.schedule_value,
             "is_active": sch.is_active,
             "last_run": last_run,
-            "next_run": next_run
+            "next_run": next_run,
+            "compare_mode": sch.compare_mode
         })
     return jsonify(data)
 
@@ -462,7 +506,8 @@ def get_schedule(schedule_id):
         "schedule_type": schedule.schedule_type,
         "schedule_value": schedule.schedule_value,
         "is_active": schedule.is_active,
-        "last_run": schedule.last_run.isoformat() if schedule.last_run else None
+        "last_run": schedule.last_run.isoformat() if schedule.last_run else None,
+        "compare_mode": schedule.compare_mode
     }
     return jsonify(data)
 
@@ -481,22 +526,21 @@ def update_schedule(schedule_id):
     schedule.schedule_type = data.get("schedule_type", schedule.schedule_type)
     schedule.schedule_value = data.get("schedule_value", schedule.schedule_value)
     schedule.is_active = data.get("is_active", schedule.is_active)
+    schedule.compare_mode = data.get("compare_mode", schedule.compare_mode)
     db.session.commit()
 
     if schedule.is_active:
         try:
-            # 最新の schedule_value で再度 CronTrigger を生成
             trigger = validate_and_create_trigger(schedule.schedule_type, schedule.schedule_value)
             add_schedule_job(schedule, trigger)
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
     else:
         job_id = f"schedule_{schedule.id}"
-        if scheduler.get_job(job_id) is not None:
+        if scheduler.get_job(job_id):
             scheduler.remove_job(job_id)
-            
-    return jsonify({"status": "success"})
 
+    return jsonify({"status": "success"})
 
 # API エンドポイント例（スケジュール削除）
 @app.route('/api/schedules/<int:schedule_id>', methods=['DELETE'])
