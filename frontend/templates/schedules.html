@@ -100,6 +100,7 @@
                     <table class="table table-striped" id="schedulesTable">
                         <thead>
                             <tr>
+                                <th>差分</th>
                                 <th>ドメイン</th>
                                 <th>ツール</th>
                                 <th>スケジュールタイプ</th>
@@ -251,6 +252,35 @@
             schedules.forEach(schedule => {
                 const row = document.createElement('tr');
                 
+if (schedule.alert_needed) {
+  const alertCell = document.createElement('td');
+  const alertMark = document.createElement("span");
+  alertMark.textContent = "⚠ 差分あり ";
+  alertMark.classList.add("text-danger", "fw-bold");
+
+  const ackButton = document.createElement("button");
+  ackButton.textContent = "確認";
+  ackButton.className = "btn btn-sm btn-outline-secondary ms-1";
+  ackButton.onclick = async () => {
+    try {
+      await fetch(`/api/schedules/${schedule.id}/acknowledge`, { method: "POST" });
+      await loadSchedules(); // スケジュール一覧を再取得・再描画
+    } catch (err) {
+      alert("確認操作に失敗しました");
+    }
+  };
+
+  alertCell.appendChild(alertMark);
+  alertCell.appendChild(ackButton);
+    row.appendChild(alertCell);
+}else{
+  const alertCell = document.createElement('td');
+  row.appendChild(alertCell);
+            }
+            
+            
+            
+            
                 // ドメイン
                 const domainCell = document.createElement('td');
                 domainCell.textContent = schedule.domain;
@@ -301,8 +331,7 @@
                 const comparemodeCell = document.createElement('td');
                 comparemodeCell.textContent = schedule.compare_mode;
                 row.appendChild(comparemodeCell);
-            
-            
+
                 // 操作
                 const actionsCell = document.createElement('td');
                 
@@ -477,7 +506,12 @@
                         const title = document.createElement('h6');
                         title.className = 'mb-1';
                         title.textContent = `${r.domain} — ${r.scan_id}`;
-                        
+                        if (r.has_diff) {
+                          const diffMark = document.createElement('span');
+                          diffMark.textContent = ' ⚠ 差分あり';
+                          diffMark.className = 'text-danger';
+                          title.appendChild(diffMark);
+                        }
                         const time = document.createElement('small');
                         time.textContent = new Date(r.created_at).toLocaleString();
                         
