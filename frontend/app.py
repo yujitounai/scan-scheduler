@@ -33,7 +33,8 @@ class Scan(db.Model):
     # ここでスケジュール実行であれば関連するスケジュールのIDを記録
     schedule_id = db.Column(db.Integer, db.ForeignKey('schedules.id'), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-
+    has_diff = db.Column(db.Boolean, default=False)
+    
 class ScanResult(db.Model):
     __tablename__ = 'scan_results'
     id = db.Column(db.Integer, primary_key=True)
@@ -42,7 +43,6 @@ class ScanResult(db.Model):
     target = db.Column(db.String, nullable=False)
     result = db.Column(db.String, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
-    has_diff = db.Column(db.Boolean, default=False)
     
 # 新たにスケジュール用のモデルを定義
 class Schedule(db.Model):
@@ -50,12 +50,13 @@ class Schedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     domain = db.Column(db.String, nullable=False)
     tool_name = db.Column(db.String, nullable=False)
-    schedule_type = db.Column(db.String, nullable=False)  # daily, weekly, monthly, hourly
-    schedule_value = db.Column(db.String, nullable=False)  # 例: "14:30" など
+    schedule_type = db.Column(db.String, nullable=False)
+    schedule_value = db.Column(db.String, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     last_run = db.Column(db.DateTime)
-    # next_run は APScheduler 側の情報と連携させるか、定期的に更新
     compare_mode = db.Column(db.String, default="none")  # none, diff, json_keys
+    last_diff_at = db.Column(db.DateTime, nullable=True)  # 差分があった最後のスキャン時刻
+    last_diff_acknowledged_at = db.Column(db.DateTime, nullable=True)  # ユーザーが最後にアラート確認した時刻
 
 
 # APScheduler の初期化
@@ -174,7 +175,7 @@ def compare_scan_results(prev_result, curr_result, mode="diff", keys=None):
         except Exception as e:
             return f"JSON比較エラー: {e}"
     return None
-
+    
 # アプリケーション起動時
 with app.app_context():
     db.create_all()
@@ -295,6 +296,27 @@ def update_scan_job(job_id, domain, tool_name, template=None):
                 logger.warning(f"比較処理中にエラー: {e}")
         except Exception as e:
             logger.error(f"スキャン結果保存エラー: {e}")
+        # update_scan_job の中に比較処理と last_diff_at の更新を追加
+        # ※ 以下は scan.result を保存した直後に入れる
+        try:
+            schedule = Schedule.query.get(scan.schedule_id)
+            if schedule and schedule.compare_mode != "none":
+                prev = Scan.query \
+                    .filter(Scan.schedule_id == schedule.id, Scan.id != scan.id, Scan.status == "completed") \
+                    .order_by(Scan.created_at.desc()) \
+                    .first()
+                if prev and prev.result:
+                    keys = ["status_code", "tech", "content_length"] if schedule.compare_mode == "json_keys" else None
+                    diff = compare_scan_results(prev.result, scan.result, schedule.compare_mode, keys)
+                    if diff:
+                        logger.info(f"比較差分あり (mode={schedule.compare_mode}):\n{diff}")
+                        scan.has_diff = True
+                        schedule.last_diff_at = scan.created_at
+                        db.session.commit()
+        except Exception as e:
+            logger.warning(f"比較処理中にエラー: {e}")
+
+
 
 @app.route('/trigger_scan', methods=['POST'])
 def trigger_scan():
@@ -477,9 +499,16 @@ def get_schedules():
     data = []
     for sch in schedules:
         job = scheduler.get_job(f"schedule_{sch.id}")
-        # ここで tzinfo を明示的に UTC に統一
         next_run = job.next_run_time.astimezone(timezone.utc).isoformat() if job and job.next_run_time else None
         last_run = sch.last_run.astimezone(timezone.utc).isoformat() if sch.last_run else None
+        last_diff_at = sch.last_diff_at.isoformat() if sch.last_diff_at else None
+        last_diff_ack = sch.last_diff_acknowledged_at.isoformat() if sch.last_diff_acknowledged_at else None
+
+        alert_needed = (
+            sch.last_diff_at is not None and
+            (sch.last_diff_acknowledged_at is None or sch.last_diff_acknowledged_at < sch.last_diff_at)
+        )
+
         data.append({
             "id": sch.id,
             "domain": sch.domain,
@@ -489,7 +518,10 @@ def get_schedules():
             "is_active": sch.is_active,
             "last_run": last_run,
             "next_run": next_run,
-            "compare_mode": sch.compare_mode
+            "compare_mode": sch.compare_mode,
+            "last_diff_at": last_diff_at,
+            "last_diff_acknowledged_at": last_diff_ack,
+            "alert_needed": alert_needed
         })
     return jsonify(data)
 
@@ -511,6 +543,16 @@ def get_schedule(schedule_id):
     }
     return jsonify(data)
 
+# /api/schedules/<int:schedule_id>/acknowledge 差分確認API
+@app.route('/api/schedules/<int:schedule_id>/acknowledge', methods=['POST'])
+def acknowledge_schedule_diff(schedule_id):
+    schedule = Schedule.query.get(schedule_id)
+    if not schedule:
+        return jsonify({"error": "スケジュールが見つかりません"}), 404
+
+    schedule.last_diff_acknowledged_at = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"status": "acknowledged", "schedule_id": schedule.id})
 
 
 # API エンドポイント例（スケジュール更新）
@@ -589,7 +631,8 @@ def get_schedule_results(schedule_id):
             "status":        s.status,
             "result":        s.result,
             "parsed_result": parsed,
-            "created_at":    s.created_at.isoformat() if s.created_at else None
+            "created_at":    s.created_at.isoformat() if s.created_at else None,
+            "has_diff":      s.has_diff
         })
 
     return jsonify({
