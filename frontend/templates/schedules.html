@@ -49,13 +49,13 @@
                             <label for="domain" class="form-label">ドメイン</label>
                             <input type="text" class="form-control" id="domain" required>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="tool" class="form-label">ツール</label>
                             <select class="form-select" id="tool" required>
                                 <option value="">選択してください</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="scheduleType" class="form-label">スケジュールタイプ</label>
                             <select class="form-select" id="scheduleType" required>
                                 <option value="daily">毎日</option>
@@ -74,6 +74,14 @@
                                 毎時: MM (例: 30)
                             </small>
                         </div>
+                            <div class="col-md-2">
+    <label for="compareMode" class="form-label">比較モード</label>
+    <select class="form-select" id="compareMode">
+        <option value="none">比較しない</option>
+        <option value="diff">文字列比較</option>
+        <option value="json_keys">重要キー比較</option>
+    </select>
+</div>
                     </div>
                     <div class="mt-3">
                         <button type="submit" class="btn btn-primary">スケジュール追加</button>
@@ -99,6 +107,7 @@
                                 <th>最終実行</th>
                                 <th>次回実行</th>
                                 <th>有効/無効</th>
+                                <th>比較モード</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -143,6 +152,14 @@
                                 <label for="editScheduleValue" class="form-label">スケジュール値</label>
                                 <input type="text" class="form-control" id="editScheduleValue" required>
                             </div>
+                <div class="mb-3">
+    <label for="editCompareMode" class="form-label">比較モード</label>
+    <select class="form-select" id="editCompareMode">
+        <option value="none">比較しない</option>
+        <option value="diff">文字列比較</option>
+        <option value="json_keys">重要キー比較</option>
+    </select>
+</div>
                             <div class="mb-3">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="editIsActive">
@@ -280,6 +297,12 @@
                 activeCell.appendChild(switchDiv);
                 row.appendChild(activeCell);
                 
+                // 比較モード
+                const comparemodeCell = document.createElement('td');
+                comparemodeCell.textContent = schedule.compare_mode;
+                row.appendChild(comparemodeCell);
+            
+            
                 // 操作
                 const actionsCell = document.createElement('td');
                 
@@ -316,6 +339,7 @@
             document.getElementById('editTool').value = schedule.tool_name;
             document.getElementById('editScheduleType').value = schedule.schedule_type;
             document.getElementById('editScheduleValue').value = schedule.schedule_value;
+            document.getElementById('editCompareMode').value = schedule.compare_mode;
             document.getElementById('editIsActive').checked = schedule.is_active;
             modal.show();
         }
@@ -346,7 +370,8 @@
                 domain: document.getElementById('domain').value,
                 tool_name: document.getElementById('tool').value,
                 schedule_type: document.getElementById('scheduleType').value,
-                schedule_value: document.getElementById('scheduleValue').value
+                schedule_value: document.getElementById('scheduleValue').value,
+                compare_mode: document.getElementById('compareMode').value
             };
             
             try {
@@ -376,6 +401,7 @@
                 tool_name: document.getElementById('editTool').value,
                 schedule_type: document.getElementById('editScheduleType').value,
                 schedule_value: document.getElementById('editScheduleValue').value,
+                compare_mode: document.getElementById('editCompareMode').value,
                 is_active: document.getElementById('editIsActive').checked
             };
             
