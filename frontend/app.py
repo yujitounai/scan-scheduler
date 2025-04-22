@@ -203,7 +203,7 @@ def update_scan_job(job_id, domain, tool_name, template=None):
         elif tool_name == "amass":
             scan_url = "http://amass-api:5555/amass"
             payload = {"target": domain}
-        elif tool_name == "recon":
+        elif tool_name == "recon-ng":
             scan_url = "http://amass-api:5555/recon"
             payload = {"target": domain}
         elif tool_name == "subfinder":
@@ -233,7 +233,7 @@ def update_scan_job(job_id, domain, tool_name, template=None):
             raise ValueError("外部ジョブIDが返されませんでした")
         
         poll_url = f"{scan_url}/{external_job_id}"
-        max_retries = 50
+        max_retries = 300
         output = ""
         for i in range(max_retries):
             poll_response = requests.get(poll_url)
@@ -649,7 +649,7 @@ def get_schedule_results(schedule_id):
 def get_tools():
     # ここでは、利用可能なスキャンツールの一覧を固定で返す例
     # 必要に応じてデータベースや設定ファイルから取得するように変更可能です
-    tools = ["nmap", "amass", "recon", "subfinder", "httpx", "dnsx", "naabu", "cdncheck", "tlsx", "nuclei", "pipeline"]
+    tools = ["nmap", "amass", "recon-ng", "subfinder", "httpx", "dnsx", "naabu", "cdncheck", "tlsx", "nuclei", "pipeline"]
     return jsonify(tools)
 
 @app.route('/schedules')
