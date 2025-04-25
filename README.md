@@ -43,7 +43,7 @@
 
    ```bash
    git clone <repository-url>
-   cd asmmm-02
+   cd scan-scheduler
    ```
 
 2. DockerとDocker Composeをインストールします。
